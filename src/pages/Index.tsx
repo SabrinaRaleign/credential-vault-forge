@@ -3,6 +3,7 @@ import HeroSection from "@/components/HeroSection";
 import WalletConnect from "@/components/WalletConnect";
 import UploadSection from "@/components/UploadSection";
 import VerifySection from "@/components/VerifySection";
+import CredentialsDashboard from "@/components/CredentialsDashboard";
 
 const Index = () => {
   return (
@@ -15,6 +16,10 @@ const Index = () => {
           <WalletConnect />
           <UploadSection />
           <VerifySection />
+        </div>
+        
+        <div className="mt-8 max-w-7xl mx-auto">
+          <CredentialsDashboard />
         </div>
         
         <div className="mt-16 max-w-3xl mx-auto">

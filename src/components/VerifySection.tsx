@@ -3,19 +3,37 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ShieldCheck, Search, Award } from "lucide-react";
+import { ShieldCheck, Search, Award, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { useAccount } from 'wagmi';
 
 const VerifySection = () => {
+  const { isConnected } = useAccount();
   const [walletAddress, setWalletAddress] = useState("");
 
   const handleVerify = () => {
+    if (!isConnected) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
     if (!walletAddress) {
       toast.error("Please enter a wallet address");
       return;
     }
+    
+    // Check if credentials exist for this address
+    const credentials = JSON.parse(localStorage.getItem('credentials') || '{}');
+    const userCredentials = Object.values(credentials).filter(
+      (cred: any) => cred.owner.toLowerCase() === walletAddress.toLowerCase()
+    );
+    
+    if (userCredentials.length === 0) {
+      toast.error("No credentials found for this address");
+      return;
+    }
+    
     toast.success("Verification request sent!", {
-      description: "Waiting for credential owner authorization"
+      description: `Found ${userCredentials.length} credential(s). Waiting for owner authorization.`
     });
     setWalletAddress("");
   };
@@ -32,6 +50,14 @@ const VerifySection = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {!isConnected && (
+          <div className="flex items-start gap-2 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
+            <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-destructive">
+              Please connect your wallet to verify credentials
+            </p>
+          </div>
+        )}
         <div className="space-y-2">
           <Label htmlFor="wallet-address">Student Wallet Address</Label>
           <Input
@@ -40,6 +66,7 @@ const VerifySection = () => {
             value={walletAddress}
             onChange={(e) => setWalletAddress(e.target.value)}
             className="font-mono text-sm"
+            disabled={!isConnected}
           />
         </div>
         <div className="flex items-start gap-2 p-3 bg-gold/10 rounded-lg border border-gold/20">
@@ -53,6 +80,7 @@ const VerifySection = () => {
           onClick={handleVerify}
           variant="verified"
           className="w-full"
+          disabled={!isConnected}
         >
           <Search className="h-4 w-4" />
           Request Verification
