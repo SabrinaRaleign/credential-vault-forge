@@ -31,7 +31,8 @@ const CredentialsDashboard = () => {
   const { address, isConnected } = useAccount();
   const [credentials, setCredentials] = useState<CredentialView[]>([]);
   const [selectedCredential, setSelectedCredential] = useState<CredentialView | null>(null);
-   const [verifierAddress, setVerifierAddress] = useState("");
+  const [verifierAddress, setVerifierAddress] = useState("");
+  const [isLoadingCredentials, setIsLoadingCredentials] = useState(false);
   const { writeContractAsync } = useWriteContract();
 
   const { data: ownedIds } = useReadContract({
@@ -50,6 +51,7 @@ const CredentialsDashboard = () => {
       const provider = (window as any).ethereum;
       if (!provider) return;
 
+      setIsLoadingCredentials(true);
       try {
         const rpc = await import("viem");
         const client = rpc.createPublicClient({
@@ -83,6 +85,7 @@ const CredentialsDashboard = () => {
           }
         }
         setCredentials(views);
+        setIsLoadingCredentials(false);
       } catch (error: any) {
         console.error("Credential loading error:", error);
         const errorMessage = error?.shortMessage || error?.message || "Unknown error occurred";
@@ -98,6 +101,7 @@ const CredentialsDashboard = () => {
             // Note: In a real implementation, we'd call the load function again
           }
         }, 2000);
+        setIsLoadingCredentials(false);
       }
     };
 
@@ -207,8 +211,15 @@ const CredentialsDashboard = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {credentials.map((credential) => (
+          {isLoadingCredentials && (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forest mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading your credentials...</p>
+            </div>
+          )}
+          {!isLoadingCredentials && (
+            <div className="space-y-3">
+              {credentials.map((credential) => (
               <div
                 key={credential.id}
                 className="p-4 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors"
@@ -264,7 +275,8 @@ const CredentialsDashboard = () => {
                 </div>
               </div>
             ))}
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
