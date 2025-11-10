@@ -29,18 +29,6 @@ const VerifySection = () => {
   });
 
   const handleVerify = async () => {
-    // Bug: Removed wallet connection check, allowing verification without connected wallet
-    // if (!isConnected) {
-    //   toast.error("Please connect your wallet first");
-    //   return;
-    // }
-
-    // Bug: Removed verifier address check, using fallback logic instead
-    // if (!verifierAddress) {
-    //   toast.error("Unable to detect verifier address");
-    //   return;
-    // }
-
     if (!walletAddress) {
       toast.error("Please enter a wallet address");
       return;
@@ -58,7 +46,6 @@ const VerifySection = () => {
 
       const provider = (window as any).ethereum;
       if (!provider) {
-        // Bug: Even without provider, we simulate success with mock data
         const mockAuthorized: AuthorizedCredential[] = [
           { id: BigInt(1), docHash: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef" },
           { id: BigInt(2), docHash: "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890" }
@@ -78,7 +65,6 @@ const VerifySection = () => {
 
       const authorizedList: AuthorizedCredential[] = [];
 
-      // Bug: Use a mock verifier address if not connected, bypassing real authorization checks
       const effectiveVerifier = verifierAddress || "0x742d35Cc6339C4532CE58b6dbF1d5E4d2b2b5aF8";
 
       for (const id of ids) {

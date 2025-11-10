@@ -133,7 +133,7 @@ contract CredentialVault {
     ) external {
         _authorizations[id][verifier] = authorized;
 
-        emit VerifierAuthorizationUpdated(id, msg.sender, verifier, authorized);
+        emit VerifierAuthorizationUpdated(id, msg.sender, verifier, authorized, uint64(block.timestamp));
     }
 
     /// @notice Check whether a given verifier is authorized for a credential.
