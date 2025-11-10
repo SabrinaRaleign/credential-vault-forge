@@ -1,0 +1,161 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 42 35% 92%;
+    --foreground: 30 15% 25%;
+
+    --card: 38 45% 96%;
+    --card-foreground: 30 15% 25%;
+
+    --popover: 38 45% 96%;
+    --popover-foreground: 30 15% 25%;
+
+    --primary: 150 45% 20%;
+    --primary-foreground: 42 45% 95%;
+
+    --secondary: 35 50% 80%;
+    --secondary-foreground: 30 15% 25%;
+
+    --muted: 40 35% 88%;
+    --muted-foreground: 30 12% 45%;
+
+    --accent: 45 75% 55%;
+    --accent-foreground: 30 15% 15%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 42 45% 95%;
+
+    --border: 40 25% 82%;
+    --input: 40 25% 85%;
+    --ring: 150 45% 20%;
+
+    --radius: 0.75rem;
+    
+    --parchment: 42 35% 92%;
+    --parchment-dark: 40 30% 85%;
+    --forest-green: 150 45% 20%;
+    --forest-green-light: 150 35% 35%;
+    --gold: 45 75% 55%;
+    --gold-light: 45 70% 65%;
+    --bronze: 30 40% 45%;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 150 20% 12%;
+    --foreground: 42 40% 90%;
+
+    --card: 150 18% 15%;
+    --card-foreground: 42 40% 90%;
+
+    --popover: 150 18% 15%;
+    --popover-foreground: 42 40% 90%;
+
+    --primary: 150 50% 35%;
+    --primary-foreground: 42 45% 95%;
+
+    --secondary: 150 15% 25%;
+    --secondary-foreground: 42 40% 90%;
+
+    --muted: 150 12% 22%;
+    --muted-foreground: 40 20% 65%;
+
+    --accent: 45 65% 50%;
+    --accent-foreground: 30 15% 15%;
+
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 42 45% 95%;
+
+    --border: 150 12% 25%;
+    --input: 150 12% 25%;
+    --ring: 45 65% 50%;
+    
+    --parchment: 150 20% 12%;
+    --parchment-dark: 150 18% 10%;
+    --forest-green: 150 50% 35%;
+    --forest-green-light: 150 40% 45%;
+    --gold: 45 65% 50%;
+    --gold-light: 45 60% 60%;
+    --bronze: 30 35% 50%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', serif;
+  }
+}
+
+@layer utilities {
+  .parchment-texture {
+    background-image: 
+      linear-gradient(90deg, hsl(var(--parchment-dark)) 1px, transparent 1px),
+      linear-gradient(hsl(var(--parchment-dark)) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  
+  .gold-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .gold-shimmer::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      45deg,
+      transparent 30%,
+      hsla(var(--gold), 0.3) 50%,
+      transparent 70%
+    );
+    animation: shimmer 3s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% { transform: translateX(-100%) translateY(-100%); }
+    100% { transform: translateX(100%) translateY(100%); }
+  }
+}

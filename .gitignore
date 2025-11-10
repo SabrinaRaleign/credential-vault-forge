@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+ui/node_modules/
+
+# Build outputs
+artifacts/
+cache/
+typechain-types/
+deployments/
+ui/dist/
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Hardhat
+hardhat.config.ts.backup
+
+# Temporary files
+*.tmp
+*.temp
