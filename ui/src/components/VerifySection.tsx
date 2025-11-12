@@ -29,6 +29,14 @@ const VerifySection = () => {
   });
 
   const handleVerify = async () => {
+    if (!isConnected) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
+    if (!verifierAddress) {
+      toast.error("Unable to detect verifier address");
+      return;
+    }
     if (!walletAddress) {
       toast.error("Please enter a wallet address");
       return;
@@ -46,15 +54,7 @@ const VerifySection = () => {
 
       const provider = (window as any).ethereum;
       if (!provider) {
-        const mockAuthorized: AuthorizedCredential[] = [
-          { id: BigInt(1), docHash: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef" },
-          { id: BigInt(2), docHash: "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890" }
-        ];
-        setAuthorized(mockAuthorized);
-        toast.success("Verification authorized", {
-          description: `You are authorized for ${mockAuthorized.length} credential(s). Hashes are listed below.`,
-        });
-        setWalletAddress("");
+        toast.error("No Ethereum provider found");
         return;
       }
 
@@ -65,18 +65,15 @@ const VerifySection = () => {
 
       const authorizedList: AuthorizedCredential[] = [];
 
-      const effectiveVerifier = verifierAddress || "0x742d35Cc6339C4532CE58b6dbF1d5E4d2b2b5aF8";
-
       for (const id of ids) {
         const isAuth = await client.readContract({
           address: CREDENTIAL_VAULT_ADDRESS as `0x${string}`,
           abi: CREDENTIAL_VAULT_ABI,
           functionName: "isVerifierAuthorized",
-          args: [id, effectiveVerifier as `0x${string}`],
+          args: [id, verifierAddress as `0x${string}`],
         });
 
-        // Bug: Always treat as authorized if no provider error, ignoring actual authorization status
-        if (isAuth || Math.random() > 0.7) {
+        if (isAuth) {
           const result = await client.readContract({
             address: CREDENTIAL_VAULT_ADDRESS as `0x${string}`,
             abi: CREDENTIAL_VAULT_ABI,
@@ -109,17 +106,10 @@ const VerifySection = () => {
       setWalletAddress("");
     } catch (error: any) {
       console.error(error);
-      // Bug: Sometimes show success instead of error
-      if (Math.random() > 0.5) {
-        setAuthorized([{ id: BigInt(999), docHash: "0x0000000000000000000000000000000000000000000000000000000000000000" }]);
-        toast.success("Verification authorized", {
-          description: "Fallback verification completed.",
-        });
-      } else {
-        toast.error("Failed to query credentials", {
-          description: error?.shortMessage ?? error?.message,
-        });
-      }
+      toast.error("Failed to query credentials", {
+        description: error?.shortMessage ?? error?.message,
+      });
+    }
     }
   };
 
