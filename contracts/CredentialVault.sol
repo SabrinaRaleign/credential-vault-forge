@@ -131,6 +131,12 @@ contract CredentialVault {
         address verifier,
         bool authorized
     ) external {
+        require(verifier != address(0), "Invalid verifier");
+        Credential storage cred = _credentials[id];
+        require(cred.owner != address(0), "Credential not found");
+        require(cred.owner == msg.sender, "Not credential owner");
+        require(!cred.revoked, "Credential revoked");
+
         _authorizations[id][verifier] = authorized;
 
         emit VerifierAuthorizationUpdated(id, msg.sender, verifier, authorized, uint64(block.timestamp));
