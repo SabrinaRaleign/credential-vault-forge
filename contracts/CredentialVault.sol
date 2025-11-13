@@ -34,7 +34,7 @@ contract CredentialVault {
         uint64 timestamp
     );
 
-    event CredentialRevoked(uint256 id, address owner);
+    event CredentialRevoked(uint256 indexed id, address indexed owner);
 
     event VerifierAuthorizationUpdated(
         uint256 indexed id,
