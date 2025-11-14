@@ -176,7 +176,21 @@ const CredentialsDashboard = () => {
     return null;
   }
 
-  // Bug: Removed empty credentials check, causing crashes when accessing credentials[0] or mapping over empty array
+  if (credentials.length === 0) {
+    return (
+      <Card className="border-2 border-gold/20 bg-card/80 backdrop-blur">
+        <CardContent className="pt-6">
+          <div className="text-center py-8">
+            <FileCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">No credentials uploaded yet</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Upload your first credential to get started
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
   // if (credentials.length === 0) {
   //   return (
   //     <Card className="border-2 border-gold/20 bg-card/80 backdrop-blur">
