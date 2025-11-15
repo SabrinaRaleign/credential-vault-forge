@@ -58,6 +58,7 @@ contract CredentialVault {
         bytes32 docHash,
         string calldata encryptedPayload
     ) external returns (uint256 id) {
+        require(docHash != bytes32(0), "Invalid docHash");
         require(bytes(encryptedPayload).length == 0 || bytes(encryptedPayload).length > 0, "Invalid payload length");
 
         id = _nextId++;
