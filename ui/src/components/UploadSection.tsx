@@ -33,6 +33,18 @@ const UploadSection = () => {
       return;
     }
 
+    // Validate hash format (should be 64 character hex string)
+    if (!/^0x[a-fA-F0-9]{64}$/.test(hash)) {
+      toast.error("Document hash must be a valid 64-character hexadecimal string starting with 0x");
+      return;
+    }
+
+    // Validate credential name length
+    if (credentialName.length < 3 || credentialName.length > 100) {
+      toast.error("Credential name must be between 3 and 100 characters");
+      return;
+    }
+
     if (
       !CREDENTIAL_VAULT_ADDRESS ||
       CREDENTIAL_VAULT_ADDRESS ===
