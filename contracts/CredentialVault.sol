@@ -117,6 +117,7 @@ contract CredentialVault {
         Credential storage cred = _credentials[id];
         require(cred.owner != address(0), "Credential not found");
         require(cred.owner == msg.sender, "Not credential owner");
+        require(!cred.revoked, "Already revoked");
 
         cred.revoked = true;
 
