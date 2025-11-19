@@ -264,4 +264,162 @@ In other words:
 - **FHE layer**: encryption/decryption, privacy guarantees.
 - **Frontend**: student/verifier flows and network wiring (local / Sepolia / Vercel).
 
+---
+
+## 🧪 Testing
+
+Run the comprehensive test suite:
+
+```bash
+# Run all tests
+npm test
+
+# Run with gas reporting
+npm run test:gas
+
+# Run specific test file
+npx hardhat test test/CredentialVault.test.ts
+```
+
+### Test Coverage
+
+- ✅ Credential registration and validation
+- ✅ Credential revocation and authorization
+- ✅ Access control and security checks
+- ✅ Event emission and state consistency
+- ✅ Gas usage optimization
+
+---
+
+## 🔧 Development
+
+### Prerequisites
+
+- Node.js 18+
+- npm or yarn
+- Git
+
+### Setup
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd credential-vault-chain
+
+# Install dependencies
+npm install
+
+# Start local development network
+npm run node
+
+# Deploy contracts locally
+npm run deploy:local
+
+# Start frontend development server
+cd ui && npm install && npm run dev
+```
+
+### Project Structure
+
+```
+credential-vault-chain/
+├── contracts/              # Solidity smart contracts
+│   ├── CredentialVault.sol # Main credential vault contract
+│   └── WorldSimulation.sol # World ID integration (future)
+├── ui/                     # React frontend application
+│   ├── src/
+│   │   ├── components/     # Reusable UI components
+│   │   ├── pages/         # Page components
+│   │   └── config/        # Contract configuration
+├── test/                   # Test files
+├── scripts/                # Deployment scripts
+└── docs/                   # Documentation
+```
+
+---
+
+## 🚀 Deployment
+
+### Local Development
+
+```bash
+# Start Hardhat network
+npm run node
+
+# Deploy contracts
+npm run deploy:local
+```
+
+### Testnet Deployment
+
+```bash
+# Configure environment
+cp .env.example .env
+# Edit .env with your testnet configuration
+
+# Deploy to Sepolia
+npm run deploy:sepolia
+```
+
+### Production Deployment
+
+See [DEPLOYMENT_README.md](DEPLOYMENT_README.md) for detailed production deployment instructions.
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Commit changes: `git commit -m 'Add your feature'`
+4. Push to branch: `git push origin feature/your-feature`
+5. Open a Pull Request
+
+### Code Style
+
+- Follow Solidity style guide
+- Use descriptive commit messages
+- Add tests for new features
+- Update documentation
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## ⚠️ Security Notice
+
+This is an MVP implementation. Before production use:
+
+- Conduct thorough security audits
+- Implement additional access controls
+- Add rate limiting and DoS protection
+- Consider multi-signature requirements
+- Implement emergency pause functionality
+
+---
+
+## 📞 Support
+
+For questions and support:
+
+- Open an issue on GitHub
+- Check the documentation in `/docs`
+- Review the deployment guide
+
+---
+
+## 🙏 Acknowledgments
+
+- Built with [Hardhat](https://hardhat.org/)
+- Frontend powered by [React](https://reactjs.org/) and [Vite](https://vitejs.dev/)
+- UI components from [shadcn/ui](https://ui.shadcn.com/)
+- Wallet integration via [RainbowKit](https://rainbowkit.com/) and [wagmi](https://wagmi.sh/)
+
+---
+
+*Last updated: November 2025*
 
