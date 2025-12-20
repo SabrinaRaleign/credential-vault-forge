@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, Lock, FileCheck, AlertCircle } from "lucide-react";
+import { Upload, FileCheck, AlertCircle, FileText, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAccount, useWriteContract } from "wagmi";
 import {
@@ -21,7 +21,42 @@ const UploadSection = () => {
   const { isConnected } = useAccount();
   const [hash, setHash] = useState("");
   const [credentialName, setCredentialName] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isCalculatingHash, setIsCalculatingHash] = useState(false);
   const { writeContractAsync, isPending } = useWriteContract();
+
+  // Calculate SHA-256 hash of the file
+  const calculateFileHash = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest("SHA-256", arrayBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = "0x" + hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+    return hashHex;
+  };
+
+  // Handle file selection
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setSelectedFile(file);
+    setIsCalculatingHash(true);
+
+    try {
+      const fileHash = await calculateFileHash(file);
+      setHash(fileHash);
+      toast.success("Document hash calculated", {
+        description: `Hash for ${file.name} has been generated`,
+      });
+    } catch (error) {
+      console.error("Error calculating hash:", error);
+      toast.error("Failed to calculate hash", {
+        description: "Please try again or enter hash manually",
+      });
+    } finally {
+      setIsCalculatingHash(false);
+    }
+  };
 
   const handleUpload = async () => {
     if (!isConnected) {
@@ -112,21 +147,50 @@ const UploadSection = () => {
         </div>
         <div className="space-y-2">
           <Label htmlFor="hash">Document Hash (SHA-256)</Label>
-          <Input
-            id="hash"
-            placeholder="Enter your credential hash"
-            value={hash}
-            onChange={(e) => setHash(e.target.value)}
-            className="font-mono text-sm"
-            disabled={!isConnected}
-          />
-        </div>
-        <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg">
-          <Lock className="h-4 w-4 text-gold mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-muted-foreground">
-            Your credential hash will be encrypted using your wallet's private key. 
-            Only authorized verifiers can decrypt the proof with your permission.
-          </p>
+          <div className="space-y-2">
+            {/* File upload area */}
+            <div className="flex items-center gap-2">
+              <Label
+                htmlFor="file-upload"
+                className="flex-1 cursor-pointer border-2 border-dashed border-border rounded-lg p-4 hover:border-forest/50 transition-colors"
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <FileText className="h-6 w-6 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    {selectedFile ? selectedFile.name : "Click to upload document (PDF, Image, etc.)"}
+                  </span>
+                  {isCalculatingHash && (
+                    <span className="text-xs text-forest">Calculating hash...</span>
+                  )}
+                </div>
+              </Label>
+              <input
+                id="file-upload"
+                type="file"
+                className="hidden"
+                onChange={handleFileSelect}
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                disabled={!isConnected || isCalculatingHash}
+              />
+            </div>
+            {/* Hash input field */}
+            <div className="relative">
+              <Input
+                id="hash"
+                placeholder="0x... (will be auto-filled when you upload a file)"
+                value={hash}
+                onChange={(e) => setHash(e.target.value)}
+                className="font-mono text-sm pr-10"
+                disabled={!isConnected}
+              />
+              {hash && /^0x[a-fA-F0-9]{64}$/.test(hash) && (
+                <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              💡 Tip: Upload your document file to automatically calculate the hash, or enter it manually
+            </p>
+          </div>
         </div>
         <Button
           onClick={handleUpload}

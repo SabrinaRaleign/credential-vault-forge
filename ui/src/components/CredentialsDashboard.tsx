@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileCheck, Clock, Trash2, Eye } from "lucide-react";
+import { FileCheck, Clock, Trash2, Eye, Download } from "lucide-react";
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { CREDENTIAL_VAULT_ADDRESS, CREDENTIAL_VAULT_ABI } from "@/config/contracts";
 
 interface CredentialView {
@@ -59,29 +65,48 @@ const CredentialsDashboard = () => {
         });
 
         const views: CredentialView[] = [];
-        for (const id of ownedIds as bigint[]) {
-          const result = await client.readContract({
-            address: CREDENTIAL_VAULT_ADDRESS as `0x${string}`,
-            abi: CREDENTIAL_VAULT_ABI,
-            functionName: "getCredential",
-            args: [id],
-          });
-          const [, , docHash, encryptedPayload, createdAt, revoked] = result as [
-            bigint,
-            string,
-            string,
-            string,
-            bigint,
-            boolean
-          ];
-          if (!revoked) {
-            views.push({
-              id,
+        // Use Promise.all for parallel loading to improve performance
+        const credentialPromises = (ownedIds as bigint[]).map(async (id) => {
+          try {
+            const result = await client.readContract({
+              address: CREDENTIAL_VAULT_ADDRESS as `0x${string}`,
+              abi: CREDENTIAL_VAULT_ABI,
+              functionName: "getCredential",
+              args: [id],
+            });
+            
+            // Ensure result is in array format
+            const resultArray = Array.isArray(result) ? result : Object.values(result);
+            
+            // Destructure return values
+            // Return format: [credentialId, owner, docHash, encryptedPayload, createdAt, revoked]
+            const credentialId = BigInt(resultArray[0]?.toString() || id.toString());
+            const owner = String(resultArray[1] || "");
+            const docHash = String(resultArray[2] || "");
+            const encryptedPayload = String(resultArray[3] || "");
+            const createdAt = BigInt(resultArray[4]?.toString() || "0");
+            const revoked = Boolean(resultArray[5] || false);
+            
+            return {
+              id: credentialId,
               docHash,
               encryptedPayload,
               createdAt,
               revoked,
-            });
+            };
+          } catch (err: any) {
+            console.error(`Error loading credential ${id}:`, err);
+            // Return null to indicate loading failure
+            return null;
+          }
+        });
+        
+        const results = await Promise.all(credentialPromises);
+        
+        // Filter out null and revoked credentials
+        for (const cred of results) {
+          if (cred && !cred.revoked) {
+            views.push(cred);
           }
         }
         setCredentials(views);
@@ -172,6 +197,117 @@ const CredentialsDashboard = () => {
     });
   };
 
+  const handleExport = (format: "json" | "csv" | "txt") => {
+    if (credentials.length === 0) {
+      toast.error("No credentials to export");
+      return;
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const ownerAddress = address || "unknown";
+
+    if (format === "json") {
+      const data = {
+        exportedAt: new Date().toISOString(),
+        owner: ownerAddress,
+        totalCredentials: credentials.length,
+        credentials: credentials.map(cred => ({
+          id: cred.id.toString(),
+          docHash: cred.docHash,
+          encryptedPayload: cred.encryptedPayload,
+          createdAt: new Date(Number(cred.createdAt) * 1000).toISOString(),
+          createdAtTimestamp: Number(cred.createdAt),
+          status: cred.revoked ? "revoked" : "active",
+        })),
+      };
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `credentials-${ownerAddress.slice(2, 10)}-${timestamp}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success(`Exported ${credentials.length} credential(s) as JSON`);
+    } else if (format === "csv") {
+      const headers = [
+        "ID",
+        "Document Hash",
+        "Encrypted Payload",
+        "Created At",
+        "Created At (ISO)",
+        "Status",
+      ];
+      const rows = credentials.map(cred => [
+        cred.id.toString(),
+        cred.docHash,
+        cred.encryptedPayload,
+        formatDate(cred.createdAt),
+        new Date(Number(cred.createdAt) * 1000).toISOString(),
+        cred.revoked ? "Revoked" : "Active",
+      ]);
+
+      // Handle special characters in CSV
+      const escapeCsv = (value: string) => {
+        if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      };
+
+      const csvContent = [
+        headers.map(escapeCsv).join(","),
+        ...rows.map(row => row.map(escapeCsv).join(",")),
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `credentials-${ownerAddress.slice(2, 10)}-${timestamp}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success(`Exported ${credentials.length} credential(s) as CSV`);
+    } else if (format === "txt") {
+      // Text format for easy reading
+      let textContent = `Credential Vault Export\n`;
+      textContent += `Exported: ${new Date().toISOString()}\n`;
+      textContent += `Owner: ${ownerAddress}\n`;
+      textContent += `Total Credentials: ${credentials.length}\n`;
+      textContent += `\n${"=".repeat(60)}\n\n`;
+
+      credentials.forEach((cred, index) => {
+        textContent += `Credential #${index + 1}\n`;
+        textContent += `ID: ${cred.id.toString()}\n`;
+        textContent += `Document Hash: ${cred.docHash}\n`;
+        textContent += `Encrypted Payload: ${cred.encryptedPayload}\n`;
+        textContent += `Created At: ${formatDate(cred.createdAt)} (${new Date(Number(cred.createdAt) * 1000).toISOString()})\n`;
+        textContent += `Status: ${cred.revoked ? "Revoked" : "Active"}\n`;
+        textContent += `\n${"-".repeat(60)}\n\n`;
+      });
+
+      const blob = new Blob([textContent], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `credentials-${ownerAddress.slice(2, 10)}-${timestamp}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success(`Exported ${credentials.length} credential(s) as TXT`);
+    }
+  };
+
   if (!isConnected) {
     return null;
   }
@@ -191,21 +327,6 @@ const CredentialsDashboard = () => {
       </Card>
     );
   }
-  // if (credentials.length === 0) {
-  //   return (
-  //     <Card className="border-2 border-gold/20 bg-card/80 backdrop-blur">
-  //       <CardContent className="pt-6">
-  //         <div className="text-center py-8">
-  //           <FileCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-  //           <p className="text-muted-foreground">No credentials uploaded yet</p>
-  //           <p className="text-sm text-muted-foreground mt-2">
-  //             Upload your first credential to get started
-  //           </p>
-  //         </div>
-  //       </CardContent>
-  //     </Card>
-  //   );
-  // }
 
   return (
     <>
@@ -218,10 +339,33 @@ const CredentialsDashboard = () => {
                 {credentials.length} credential{credentials.length !== 1 ? 's' : ''} stored securely
               </CardDescription>
             </div>
-            <Badge variant="secondary" className="bg-forest/20 text-forest border-forest/30">
-              <FileCheck className="h-3 w-3 mr-1" />
-              Active
-            </Badge>
+            <div className="flex items-center gap-2">
+              {credentials.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={isLoadingCredentials}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Export
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleExport("json")}>
+                      Export as JSON
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport("csv")}>
+                      Export as CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport("txt")}>
+                      Export as TXT
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              <Badge variant="secondary" className="bg-forest/20 text-forest border-forest/30">
+                <FileCheck className="h-3 w-3 mr-1" />
+                Active
+              </Badge>
+            </div>
           </div>
         </CardHeader>
         <CardContent>

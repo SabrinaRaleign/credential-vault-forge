@@ -2,6 +2,7 @@ import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
 import UploadSection from "@/components/UploadSection";
 import VerifySection from "@/components/VerifySection";
+import DocumentVerificationSection from "@/components/DocumentVerificationSection";
 import CredentialsDashboard from "@/components/CredentialsDashboard";
 
 const Index = () => {
@@ -14,6 +15,7 @@ const Index = () => {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
           <UploadSection />
           <VerifySection />
+          <DocumentVerificationSection />
         </div>
         
         <div className="mt-8 max-w-7xl mx-auto">

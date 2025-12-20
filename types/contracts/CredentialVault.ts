@@ -36,6 +36,7 @@ export interface CredentialVaultInterface extends Interface {
 
   getEvent(
     nameOrSignatureOrTopic:
+      | "CredentialQueried"
       | "CredentialRegistered"
       | "CredentialRevoked"
       | "VerifierAuthorizationUpdated"
@@ -92,17 +93,42 @@ export interface CredentialVaultInterface extends Interface {
   ): Result;
 }
 
+export namespace CredentialQueriedEvent {
+  export type InputTuple = [
+    id: BigNumberish,
+    querier: AddressLike,
+    timestamp: BigNumberish
+  ];
+  export type OutputTuple = [id: bigint, querier: string, timestamp: bigint];
+  export interface OutputObject {
+    id: bigint;
+    querier: string;
+    timestamp: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
 export namespace CredentialRegisteredEvent {
   export type InputTuple = [
     id: BigNumberish,
     owner: AddressLike,
-    docHash: BytesLike
+    docHash: BytesLike,
+    timestamp: BigNumberish
   ];
-  export type OutputTuple = [id: bigint, owner: string, docHash: string];
+  export type OutputTuple = [
+    id: bigint,
+    owner: string,
+    docHash: string,
+    timestamp: bigint
+  ];
   export interface OutputObject {
     id: bigint;
     owner: string;
     docHash: string;
+    timestamp: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -128,19 +154,22 @@ export namespace VerifierAuthorizationUpdatedEvent {
     id: BigNumberish,
     owner: AddressLike,
     verifier: AddressLike,
-    authorized: boolean
+    authorized: boolean,
+    timestamp: BigNumberish
   ];
   export type OutputTuple = [
     id: bigint,
     owner: string,
     verifier: string,
-    authorized: boolean
+    authorized: boolean,
+    timestamp: bigint
   ];
   export interface OutputObject {
     id: bigint;
     owner: string;
     verifier: string;
     authorized: boolean;
+    timestamp: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -203,7 +232,7 @@ export interface CredentialVault extends BaseContract {
         revoked: boolean;
       }
     ],
-    "view"
+    "nonpayable"
   >;
 
   getOwnerCredentials: TypedContractMethod<
@@ -254,7 +283,7 @@ export interface CredentialVault extends BaseContract {
         revoked: boolean;
       }
     ],
-    "view"
+    "nonpayable"
   >;
   getFunction(
     nameOrSignature: "getOwnerCredentials"
@@ -285,6 +314,13 @@ export interface CredentialVault extends BaseContract {
   >;
 
   getEvent(
+    key: "CredentialQueried"
+  ): TypedContractEvent<
+    CredentialQueriedEvent.InputTuple,
+    CredentialQueriedEvent.OutputTuple,
+    CredentialQueriedEvent.OutputObject
+  >;
+  getEvent(
     key: "CredentialRegistered"
   ): TypedContractEvent<
     CredentialRegisteredEvent.InputTuple,
@@ -307,7 +343,18 @@ export interface CredentialVault extends BaseContract {
   >;
 
   filters: {
-    "CredentialRegistered(uint256,address,bytes32)": TypedContractEvent<
+    "CredentialQueried(uint256,address,uint64)": TypedContractEvent<
+      CredentialQueriedEvent.InputTuple,
+      CredentialQueriedEvent.OutputTuple,
+      CredentialQueriedEvent.OutputObject
+    >;
+    CredentialQueried: TypedContractEvent<
+      CredentialQueriedEvent.InputTuple,
+      CredentialQueriedEvent.OutputTuple,
+      CredentialQueriedEvent.OutputObject
+    >;
+
+    "CredentialRegistered(uint256,address,bytes32,uint64)": TypedContractEvent<
       CredentialRegisteredEvent.InputTuple,
       CredentialRegisteredEvent.OutputTuple,
       CredentialRegisteredEvent.OutputObject
@@ -329,7 +376,7 @@ export interface CredentialVault extends BaseContract {
       CredentialRevokedEvent.OutputObject
     >;
 
-    "VerifierAuthorizationUpdated(uint256,address,address,bool)": TypedContractEvent<
+    "VerifierAuthorizationUpdated(uint256,address,address,bool,uint64)": TypedContractEvent<
       VerifierAuthorizationUpdatedEvent.InputTuple,
       VerifierAuthorizationUpdatedEvent.OutputTuple,
       VerifierAuthorizationUpdatedEvent.OutputObject

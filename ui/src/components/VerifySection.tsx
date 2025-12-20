@@ -110,7 +110,6 @@ const VerifySection = () => {
         description: error?.shortMessage ?? error?.message,
       });
     }
-    }
   };
 
   return (
