@@ -12,8 +12,8 @@ The UI is based on the `credential-vault-forge` project and uses Vite, React, Ra
 
 ### Live Demo & Video
 
-- **Vercel demo**: [`credential-vault-chain.vercel.app`](https://credential-vault-chain.vercel.app/)
-- **Walkthrough video**: `credential-vault-chain.mp4` (in this repository root)
+- **Vercel demo**: [`credential-vault-chain.vercel.app`](https://credential-vault-chain-pro.vercel.app/)
+- **Walkthrough video**: `credential-vault-chain.mp4` (https://youtu.be/wTRn1DouD_E)
 
 ---
 
