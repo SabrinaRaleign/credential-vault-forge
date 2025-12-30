@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FileCheck, FileText, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { useAccount, useReadContract } from "wagmi";
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { CREDENTIAL_VAULT_ADDRESS, CREDENTIAL_VAULT_ABI } from "@/config/contracts";
 
 type AuthorizedCredential = {
@@ -20,6 +20,29 @@ const DocumentVerificationSection = () => {
   const [verificationFiles, setVerificationFiles] = useState<Map<bigint, File>>(new Map());
   const [verificationResults, setVerificationResults] = useState<Map<bigint, boolean>>(new Map());
   const [isVerifying, setIsVerifying] = useState(false);
+  const [verifyingCredentialId, setVerifyingCredentialId] = useState<bigint | null>(null);
+  
+  const { writeContractAsync, isPending } = useWriteContract();
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined);
+
+  // Wait for transaction receipt
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
+
+  // Handle transaction confirmation
+  useEffect(() => {
+    if (isConfirmed && txHash && verifyingCredentialId) {
+      const result = verificationResults.get(verifyingCredentialId);
+      if (result) {
+        toast.success("Verification recorded on-chain", {
+          description: "Your verification has been recorded on the blockchain",
+        });
+      }
+      setTxHash(undefined);
+      setVerifyingCredentialId(null);
+    }
+  }, [isConfirmed, txHash, verifyingCredentialId, verificationResults]);
 
   const { data: ownerIds, refetch } = useReadContract({
     address: CREDENTIAL_VAULT_ADDRESS as `0x${string}`,
@@ -123,7 +146,7 @@ const DocumentVerificationSection = () => {
     }
   };
 
-  // Verify document hash
+  // Verify document hash and trigger MetaMask transaction
   const handleVerifyDocument = async (credentialId: bigint, expectedHash: string) => {
     const file = verificationFiles.get(credentialId);
     if (!file) {
@@ -131,25 +154,74 @@ const DocumentVerificationSection = () => {
       return;
     }
 
+    if (!isConnected || !verifierAddress) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
+
     setIsVerifying(true);
+    setVerifyingCredentialId(credentialId);
+    
     try {
+      // 1. Calculate file hash
       const fileHash = await calculateFileHash(file);
+      
+      // 2. Local comparison for UI display
       const matches = fileHash.toLowerCase() === expectedHash.toLowerCase();
       
-      setVerificationResults(prev => {
-        const newMap = new Map(prev);
-        newMap.set(credentialId, matches);
-        return newMap;
-      });
+      // 3. Convert hash string to bytes32 for contract call
+      // The hash is already in hex format (0x...), we need to convert it to bytes32
+      // viem will handle the conversion, but we need to ensure it's the right format
+      const hashBytes32 = fileHash as `0x${string}`;
+      
+      // 4. Trigger MetaMask transaction to record verification on-chain
+      try {
+        const transactionHash = await writeContractAsync({
+          address: CREDENTIAL_VAULT_ADDRESS as `0x${string}`,
+          abi: CREDENTIAL_VAULT_ABI,
+          functionName: "verifyCredential",
+          args: [credentialId, hashBytes32],
+        });
 
-      if (matches) {
-        toast.success("Document verified!", {
-          description: "The document hash matches the on-chain record. Document is authentic.",
+        setTxHash(transactionHash);
+        
+        // Update UI with local verification result immediately
+        setVerificationResults(prev => {
+          const newMap = new Map(prev);
+          newMap.set(credentialId, matches);
+          return newMap;
         });
-      } else {
-        toast.error("Document verification failed", {
-          description: "The document hash does not match. This may not be the original document.",
+
+        if (matches) {
+          toast.info("Transaction submitted", {
+            description: "Please confirm the transaction in MetaMask to record verification",
+          });
+        } else {
+          toast.warning("Hash mismatch - Transaction submitted", {
+            description: "Document hash does not match, but verification request is being recorded",
+          });
+        }
+      } catch (txError: any) {
+        console.error("Transaction error:", txError);
+        toast.error("Failed to submit verification transaction", {
+          description: txError?.shortMessage ?? txError?.message ?? "Please check your wallet connection",
         });
+        // Still show local verification result even if transaction fails
+        setVerificationResults(prev => {
+          const newMap = new Map(prev);
+          newMap.set(credentialId, matches);
+          return newMap;
+        });
+        
+        if (matches) {
+          toast.success("Document verified locally", {
+            description: "Hash matches, but on-chain recording failed. Please try again.",
+          });
+        } else {
+          toast.error("Document verification failed", {
+            description: "The document hash does not match the on-chain record.",
+          });
+        }
       }
     } catch (error) {
       console.error("Error verifying document:", error);
@@ -274,14 +346,14 @@ const DocumentVerificationSection = () => {
                             variant="outline"
                             className="w-full"
                             onClick={() => handleVerifyDocument(cred.id, cred.docHash)}
-                            disabled={isVerifying}
+                            disabled={isVerifying || isPending || isConfirming}
                           >
-                            {isVerifying ? (
-                              <>Verifying...</>
+                            {isVerifying || isPending || isConfirming ? (
+                              <>Processing...</>
                             ) : (
                               <>
                                 <FileCheck className="h-3 w-3 mr-2" />
-                                Verify Document Hash
+                                Verify Document Hash (On-Chain)
                               </>
                             )}
                           </Button>

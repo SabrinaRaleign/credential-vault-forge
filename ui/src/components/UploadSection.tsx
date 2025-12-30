@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload, FileCheck, AlertCircle, FileText, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import { useAccount, useWriteContract } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import {
   CREDENTIAL_VAULT_ADDRESS,
   CREDENTIAL_VAULT_ABI,
@@ -23,7 +23,13 @@ const UploadSection = () => {
   const [credentialName, setCredentialName] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isCalculatingHash, setIsCalculatingHash] = useState(false);
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined);
   const { writeContractAsync, isPending } = useWriteContract();
+  
+  // Wait for transaction receipt and trigger refresh
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
 
   // Calculate SHA-256 hash of the file
   const calculateFileHash = async (file: File): Promise<string> => {
@@ -58,6 +64,26 @@ const UploadSection = () => {
     }
   };
 
+  // Handle transaction confirmation
+  useEffect(() => {
+    if (isConfirmed && txHash) {
+      toast.success("Credential hash stored on-chain", {
+        description: "Your credential reference is now in the vault",
+      });
+      setHash("");
+      setCredentialName("");
+      setSelectedFile(null);
+      setTxHash(undefined);
+      
+      // Trigger credentials dashboard refresh
+      if ((window as any).refreshCredentials) {
+        setTimeout(() => {
+          (window as any).refreshCredentials();
+        }, 1000); // Wait 1 second for block confirmation
+      }
+    }
+  }, [isConfirmed, txHash]);
+
   const handleUpload = async () => {
     if (!isConnected) {
       toast.error("Please connect your wallet first");
@@ -91,27 +117,27 @@ const UploadSection = () => {
 
     try {
       const docHashBytes = hash as `0x${string}`;
-      // For now, treat the credential name as a label and store it as a simple payload.
-      // In an FHE-enabled version, this would be a ciphertext / handle created by the fhevm SDK.
-      const encryptedPayload = `vault:${credentialName}`;
+      // Store the file hash in encryptedPayload field (same as docHash)
+      // This allows verification by comparing hashes
+      const encryptedPayload = hash;
 
-      await writeContractAsync({
+      const transactionHash = await writeContractAsync({
         address: CREDENTIAL_VAULT_ADDRESS as `0x${string}`,
         abi: CREDENTIAL_VAULT_ABI,
         functionName: "registerCredential",
         args: [docHashBytes, encryptedPayload],
       });
 
-      toast.success("Credential hash stored on-chain", {
-        description: "Your credential reference is now in the vault",
+      setTxHash(transactionHash);
+      toast.success("Transaction submitted", {
+        description: "Waiting for confirmation...",
       });
-      setHash("");
-      setCredentialName("");
     } catch (error: any) {
       console.error(error);
       toast.error("Failed to register credential", {
         description: error?.shortMessage ?? error?.message,
       });
+      setTxHash(undefined);
     }
   };
 
@@ -196,10 +222,10 @@ const UploadSection = () => {
           onClick={handleUpload}
           variant="credential"
           className="w-full"
-          disabled={!isConnected || isPending}
+          disabled={!isConnected || isPending || isConfirming}
         >
           <Upload className="h-4 w-4" />
-          {isPending ? "Submitting..." : "Encrypt & Upload"}
+          {isPending ? "Submitting..." : isConfirming ? "Confirming..." : "Encrypt & Upload"}
         </Button>
       </CardContent>
     </Card>

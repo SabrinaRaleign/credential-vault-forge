@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FileCheck, Clock, Trash2, Eye, Download } from "lucide-react";
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, useReadContract, useWriteContract, usePublicClient } from "wagmi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -40,59 +40,58 @@ const CredentialsDashboard = () => {
   const [verifierAddress, setVerifierAddress] = useState("");
   const [isLoadingCredentials, setIsLoadingCredentials] = useState(false);
   const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
 
-  const { data: ownedIds } = useReadContract({
+  const { data: ownedIds, refetch: refetchOwnedIds } = useReadContract({
     address: CREDENTIAL_VAULT_ADDRESS as `0x${string}`,
     abi: CREDENTIAL_VAULT_ABI,
     functionName: "getOwnerCredentials",
     args: address ? [address as `0x${string}`] : undefined,
     query: {
       enabled: isConnected && !!address && CREDENTIAL_VAULT_ADDRESS !== "0x0000000000000000000000000000000000000000",
+      refetchInterval: 3000, // Auto-refresh every 3 seconds
     },
   });
 
   useEffect(() => {
     const load = async () => {
-      if (!isConnected || !address || !ownedIds || !Array.isArray(ownedIds)) return;
-      const provider = (window as any).ethereum;
-      if (!provider) return;
+      if (!isConnected || !address || !ownedIds || !Array.isArray(ownedIds) || !publicClient) return;
 
       setIsLoadingCredentials(true);
       try {
-        const rpc = await import("viem");
-        const client = rpc.createPublicClient({
-          transport: rpc.custom(provider),
-        });
-
         const views: CredentialView[] = [];
         // Use Promise.all for parallel loading to improve performance
         const credentialPromises = (ownedIds as bigint[]).map(async (id) => {
           try {
-            const result = await client.readContract({
+            const result = await publicClient.readContract({
               address: CREDENTIAL_VAULT_ADDRESS as `0x${string}`,
               abi: CREDENTIAL_VAULT_ABI,
               functionName: "getCredential",
               args: [id],
             });
             
-            // Ensure result is in array format
-            const resultArray = Array.isArray(result) ? result : Object.values(result);
+            // getCredential returns a tuple: [credentialId, owner, docHash, encryptedPayload, createdAt, revoked]
+            // viem returns tuples as arrays
+            if (!Array.isArray(result) || result.length < 6) {
+              console.error(`Invalid result format for credential ${id}:`, result);
+              return null;
+            }
             
-            // Destructure return values
-            // Return format: [credentialId, owner, docHash, encryptedPayload, createdAt, revoked]
-            const credentialId = BigInt(resultArray[0]?.toString() || id.toString());
-            const owner = String(resultArray[1] || "");
-            const docHash = String(resultArray[2] || "");
-            const encryptedPayload = String(resultArray[3] || "");
-            const createdAt = BigInt(resultArray[4]?.toString() || "0");
-            const revoked = Boolean(resultArray[5] || false);
+            const [credentialId, , docHash, encryptedPayload, createdAt, revoked] = result as [
+              bigint,
+              string,
+              string,
+              string,
+              bigint,
+              boolean
+            ];
             
             return {
               id: credentialId,
-              docHash,
-              encryptedPayload,
+              docHash: String(docHash),
+              encryptedPayload: String(encryptedPayload),
               createdAt,
-              revoked,
+              revoked: Boolean(revoked),
             };
           } catch (err: any) {
             console.error(`Error loading credential ${id}:`, err);
@@ -118,20 +117,22 @@ const CredentialsDashboard = () => {
           description: `Error: ${errorMessage}. Please check your connection and try again.`,
           duration: 5000,
         });
-
-        // Enhanced error recovery: retry once after a delay
-        setTimeout(() => {
-          if (isConnected && address) {
-            console.log("Retrying credential load after error...");
-            // Note: In a real implementation, we'd call the load function again
-          }
-        }, 2000);
         setIsLoadingCredentials(false);
       }
     };
 
     load();
-  }, [isConnected, address, ownedIds]);
+  }, [isConnected, address, ownedIds, publicClient]);
+
+  // Expose refetch function to window for external triggers
+  useEffect(() => {
+    (window as any).refreshCredentials = () => {
+      refetchOwnedIds();
+    };
+    return () => {
+      delete (window as any).refreshCredentials;
+    };
+  }, [refetchOwnedIds]);
 
   const handleDelete = async (id: bigint) => {
     try {
@@ -441,20 +442,20 @@ const CredentialsDashboard = () => {
       {/* Credential Details Dialog */}
       {selectedCredential && (
         <AlertDialog open={!!selectedCredential} onOpenChange={() => setSelectedCredential(null)}>
-          <AlertDialogContent>
+          <AlertDialogContent className="max-w-[90vw] sm:max-w-lg">
             <AlertDialogHeader>
               <AlertDialogTitle>Credential #{selectedCredential.id.toString()}</AlertDialogTitle>
               <AlertDialogDescription asChild>
-                <div className="space-y-4 pt-4">
+                <div className="space-y-4 pt-4 max-w-full">
                   <div>
                     <p className="text-sm font-medium text-foreground mb-1">Document Hash</p>
-                    <p className="text-xs font-mono bg-muted p-2 rounded break-all">
+                    <p className="text-xs font-mono bg-muted p-2 rounded break-all overflow-wrap-anywhere">
                       {selectedCredential.docHash}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-foreground mb-1">Encrypted Payload</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs font-mono bg-muted p-2 rounded break-all overflow-wrap-anywhere text-muted-foreground">
                       {selectedCredential.encryptedPayload}
                     </p>
                   </div>
@@ -463,7 +464,7 @@ const CredentialsDashboard = () => {
                     <div className="flex flex-col gap-2">
                       <Input
                         placeholder="0x... verifier address"
-                        className="font-mono text-xs"
+                        className="font-mono text-xs break-all overflow-wrap-anywhere min-w-0"
                         value={verifierAddress}
                         onChange={(e) => setVerifierAddress(e.target.value)}
                       />

@@ -27,6 +27,16 @@ contract CredentialVault {
     /// @dev credentialId => verifier => isAuthorized
     mapping(uint256 => mapping(address => bool)) private _authorizations;
 
+    /// @dev Verification record structure
+    struct VerificationRecord {
+        bool verified;
+        bytes32 verifiedHash;
+        uint64 verifiedAt;
+    }
+
+    /// @dev credentialId => verifier => VerificationRecord
+    mapping(uint256 => mapping(address => VerificationRecord)) private _verificationRecords;
+
     event CredentialRegistered(
         uint256 indexed id,
         address indexed owner,
@@ -47,6 +57,14 @@ contract CredentialVault {
     event CredentialQueried(
         uint256 indexed id,
         address indexed querier,
+        uint64 timestamp
+    );
+
+    event CredentialVerified(
+        uint256 indexed id,
+        address indexed verifier,
+        bytes32 verifiedHash,
+        bool matches,
         uint64 timestamp
     );
 
@@ -162,6 +180,55 @@ contract CredentialVault {
             return true;
         }
         return _authorizations[id][verifier];
+    }
+
+    /// @notice Verify a credential by comparing hash
+    /// @param id The credential ID to verify
+    /// @param fileHash The hash of the file being verified (as bytes32)
+    function verifyCredential(
+        uint256 id,
+        bytes32 fileHash
+    ) external {
+        require(id > 0, "Invalid credential ID");
+        require(fileHash != bytes32(0), "Invalid file hash");
+        
+        Credential storage cred = _credentials[id];
+        require(cred.owner != address(0), "Credential not found");
+        require(!cred.revoked, "Credential revoked");
+        
+        // Check if verifier is authorized
+        bool isAuthorized = (msg.sender == cred.owner) || _authorizations[id][msg.sender];
+        require(isAuthorized, "Not authorized to verify");
+        
+        // Compare fileHash with docHash (both are bytes32)
+        // encryptedPayload stores the hash as string, but we compare with docHash which is the source of truth
+        bool matches = (fileHash == cred.docHash);
+        
+        // Record verification result
+        _verificationRecords[id][msg.sender] = VerificationRecord({
+            verified: true,
+            verifiedHash: fileHash,
+            verifiedAt: uint64(block.timestamp)
+        });
+        
+        emit CredentialVerified(
+            id,
+            msg.sender,
+            fileHash,
+            matches,
+            uint64(block.timestamp)
+        );
+    }
+
+    /// @notice Get verification record for a credential
+    /// @param id The credential ID
+    /// @param verifier The verifier address
+    function getVerificationRecord(
+        uint256 id,
+        address verifier
+    ) external view returns (bool verified, bytes32 verifiedHash, uint64 verifiedAt) {
+        VerificationRecord memory record = _verificationRecords[id][verifier];
+        return (record.verified, record.verifiedHash, record.verifiedAt);
     }
 }
 

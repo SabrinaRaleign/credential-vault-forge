@@ -28,10 +28,12 @@ export interface CredentialVaultInterface extends Interface {
     nameOrSignature:
       | "getCredential"
       | "getOwnerCredentials"
+      | "getVerificationRecord"
       | "isVerifierAuthorized"
       | "registerCredential"
       | "revokeCredential"
       | "setVerifierAuthorization"
+      | "verifyCredential"
   ): FunctionFragment;
 
   getEvent(
@@ -39,6 +41,7 @@ export interface CredentialVaultInterface extends Interface {
       | "CredentialQueried"
       | "CredentialRegistered"
       | "CredentialRevoked"
+      | "CredentialVerified"
       | "VerifierAuthorizationUpdated"
   ): EventFragment;
 
@@ -49,6 +52,10 @@ export interface CredentialVaultInterface extends Interface {
   encodeFunctionData(
     functionFragment: "getOwnerCredentials",
     values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getVerificationRecord",
+    values: [BigNumberish, AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "isVerifierAuthorized",
@@ -66,6 +73,10 @@ export interface CredentialVaultInterface extends Interface {
     functionFragment: "setVerifierAuthorization",
     values: [BigNumberish, AddressLike, boolean]
   ): string;
+  encodeFunctionData(
+    functionFragment: "verifyCredential",
+    values: [BigNumberish, BytesLike]
+  ): string;
 
   decodeFunctionResult(
     functionFragment: "getCredential",
@@ -73,6 +84,10 @@ export interface CredentialVaultInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "getOwnerCredentials",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getVerificationRecord",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -89,6 +104,10 @@ export interface CredentialVaultInterface extends Interface {
   ): Result;
   decodeFunctionResult(
     functionFragment: "setVerifierAuthorization",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "verifyCredential",
     data: BytesLike
   ): Result;
 }
@@ -142,6 +161,34 @@ export namespace CredentialRevokedEvent {
   export interface OutputObject {
     id: bigint;
     owner: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace CredentialVerifiedEvent {
+  export type InputTuple = [
+    id: BigNumberish,
+    verifier: AddressLike,
+    verifiedHash: BytesLike,
+    matches: boolean,
+    timestamp: BigNumberish
+  ];
+  export type OutputTuple = [
+    id: bigint,
+    verifier: string,
+    verifiedHash: string,
+    matches: boolean,
+    timestamp: bigint
+  ];
+  export interface OutputObject {
+    id: bigint;
+    verifier: string;
+    verifiedHash: string;
+    matches: boolean;
+    timestamp: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -241,6 +288,18 @@ export interface CredentialVault extends BaseContract {
     "view"
   >;
 
+  getVerificationRecord: TypedContractMethod<
+    [id: BigNumberish, verifier: AddressLike],
+    [
+      [boolean, string, bigint] & {
+        verified: boolean;
+        verifiedHash: string;
+        verifiedAt: bigint;
+      }
+    ],
+    "view"
+  >;
+
   isVerifierAuthorized: TypedContractMethod<
     [id: BigNumberish, verifier: AddressLike],
     [boolean],
@@ -261,6 +320,12 @@ export interface CredentialVault extends BaseContract {
 
   setVerifierAuthorization: TypedContractMethod<
     [id: BigNumberish, verifier: AddressLike, authorized: boolean],
+    [void],
+    "nonpayable"
+  >;
+
+  verifyCredential: TypedContractMethod<
+    [id: BigNumberish, fileHash: BytesLike],
     [void],
     "nonpayable"
   >;
@@ -289,6 +354,19 @@ export interface CredentialVault extends BaseContract {
     nameOrSignature: "getOwnerCredentials"
   ): TypedContractMethod<[owner: AddressLike], [bigint[]], "view">;
   getFunction(
+    nameOrSignature: "getVerificationRecord"
+  ): TypedContractMethod<
+    [id: BigNumberish, verifier: AddressLike],
+    [
+      [boolean, string, bigint] & {
+        verified: boolean;
+        verifiedHash: string;
+        verifiedAt: bigint;
+      }
+    ],
+    "view"
+  >;
+  getFunction(
     nameOrSignature: "isVerifierAuthorized"
   ): TypedContractMethod<
     [id: BigNumberish, verifier: AddressLike],
@@ -309,6 +387,13 @@ export interface CredentialVault extends BaseContract {
     nameOrSignature: "setVerifierAuthorization"
   ): TypedContractMethod<
     [id: BigNumberish, verifier: AddressLike, authorized: boolean],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "verifyCredential"
+  ): TypedContractMethod<
+    [id: BigNumberish, fileHash: BytesLike],
     [void],
     "nonpayable"
   >;
@@ -333,6 +418,13 @@ export interface CredentialVault extends BaseContract {
     CredentialRevokedEvent.InputTuple,
     CredentialRevokedEvent.OutputTuple,
     CredentialRevokedEvent.OutputObject
+  >;
+  getEvent(
+    key: "CredentialVerified"
+  ): TypedContractEvent<
+    CredentialVerifiedEvent.InputTuple,
+    CredentialVerifiedEvent.OutputTuple,
+    CredentialVerifiedEvent.OutputObject
   >;
   getEvent(
     key: "VerifierAuthorizationUpdated"
@@ -374,6 +466,17 @@ export interface CredentialVault extends BaseContract {
       CredentialRevokedEvent.InputTuple,
       CredentialRevokedEvent.OutputTuple,
       CredentialRevokedEvent.OutputObject
+    >;
+
+    "CredentialVerified(uint256,address,bytes32,bool,uint64)": TypedContractEvent<
+      CredentialVerifiedEvent.InputTuple,
+      CredentialVerifiedEvent.OutputTuple,
+      CredentialVerifiedEvent.OutputObject
+    >;
+    CredentialVerified: TypedContractEvent<
+      CredentialVerifiedEvent.InputTuple,
+      CredentialVerifiedEvent.OutputTuple,
+      CredentialVerifiedEvent.OutputObject
     >;
 
     "VerifierAuthorizationUpdated(uint256,address,address,bool,uint64)": TypedContractEvent<

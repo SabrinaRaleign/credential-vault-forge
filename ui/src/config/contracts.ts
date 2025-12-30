@@ -2,7 +2,7 @@ import { parseAbi } from "viem";
 
 // Local Hardhat address (31337) - used when running against localhost
 export const CREDENTIAL_VAULT_ADDRESS_LOCAL =
-  "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
+  "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 
 // Sepolia testnet address - deployed via Hardhat deploy --network sepolia
 export const CREDENTIAL_VAULT_ADDRESS_SEPOLIA =
@@ -19,5 +19,7 @@ export const CREDENTIAL_VAULT_ABI = parseAbi([
   "function setVerifierAuthorization(uint256 id, address verifier, bool authorized)",
   "function isVerifierAuthorized(uint256 id, address verifier) view returns (bool)",
   "function revokeCredential(uint256 id)",
+  "function verifyCredential(uint256 id, bytes32 fileHash)",
+  "function getVerificationRecord(uint256 id, address verifier) view returns (bool verified, bytes32 verifiedHash, uint64 verifiedAt)",
 ]);
 
